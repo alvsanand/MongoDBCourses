@@ -1,0 +1,57 @@
+killall -9 mongos mongod mongo
+
+for j in 0 1 2; do
+    rm -Rf /tmp/repl_test-rs-"$j" && mkdir /tmp/repl_test-rs-"$j"
+    mongod --oplogSize 40 --port 310"$j"0 --smallfiles --rest --httpinterface  --replSet shard$i --dbpath /tmp/repl_test-rs-"$j" --logpath /tmp/repl_test-rs-"$j"/mongodb.log --fork
+done
+
+
+rm -Rf /tmp/repl_test-rs-arb && mkdir /tmp/repl_test-rs-arb
+mongod --oplogSize 40 --port 31030 --smallfiles --rest --httpinterface  --replSet shard$i --dbpath /tmp/repl_test-rs-arb --logpath /tmp/repl_test-rs-arb/mongodb.log --fork
+
+echo "rs.initiate()" | mongo alvsanand-Inspiron-5521:31000
+
+for j in 1 2; do
+    echo "rs.add(\"alvsanand-Inspiron-5521:310${j}0\")" | mongo alvsanand-Inspiron-5521:31000
+done
+echo "rs.addArb  (\"alvsanand-Inspiron-5521:31030\")" | mongo alvsanand-Inspiron-5521:31000
+  
+
+mongo 127.0.0.1:27017
+
+######
+sh.addShard( "shard0/alvsanand-Inspiron-5521:31000,alvsanand-Inspiron-5521:31010,alvsanand-Inspiron-5521:31020" )
+sh.addShard( "shard1/alvsanand-Inspiron-5521:31100,alvsanand-Inspiron-5521:31110,alvsanand-Inspiron-5521:31120" )
+sh.addShard( "shard2/alvsanand-Inspiron-5521:31200,alvsanand-Inspiron-5521:31210,alvsanand-Inspiron-5521:31220" )
+
+use m202
+db.createCollection("presplit")
+db.presplit.ensureIndex({a: 1})
+
+use admin
+sh.enableSharding("m202")
+sh.shardCollection("m202.presplit", { a: 1} )
+
+sh.stopBalancer()
+
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  0} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  7} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  10} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  14} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  15} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  20} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  21} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  22} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  23} } )
+db.runCommand( { split : "m202.presplit" ,  middle : { a :  24} } )
+
+sh.moveChunk("m202.presplit", { a: 0 }, "shard0")
+sh.moveChunk("m202.presplit", { a: 7 }, "shard0")
+sh.moveChunk("m202.presplit", { a: 10 }, "shard0")
+sh.moveChunk("m202.presplit", { a: 14 }, "shard1")
+sh.moveChunk("m202.presplit", { a: 15 }, "shard1")
+sh.moveChunk("m202.presplit", { a: 20 }, "shard1")
+sh.moveChunk("m202.presplit", { a: 21 }, "shard2")
+sh.moveChunk("m202.presplit", { a: 22 }, "shard2")
+sh.moveChunk("m202.presplit", { a: 23 }, "shard2")
+######

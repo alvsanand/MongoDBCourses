@@ -1,0 +1,1 @@
+db.movieDetails.find({"awards.oscars.award": "bestPicture"})
